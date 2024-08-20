@@ -1,5 +1,5 @@
 from utils.retrieval.wikidata import retrieve_wikidata_knowledge
-from utils.retrieval.wikitable import retrieve_wikitable_knowledge
+# from utils.retrieval.wikitable import retrieve_wikitable_knowledge
 from utils.retrieval.dpr import retrieve_dpr_knowledge
 from utils.retrieval.wikipedia import retrieve_wikipedia_knowledge
 
