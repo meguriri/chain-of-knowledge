@@ -16,9 +16,10 @@ class hotpotqa:
         # s2_edit_prompt
         self.s2_edit_prompt_demonstration = hotpotqa_s2_edit_prompt_demonstration
         
+    #获取数据集
     def get_dataset(self):
         return self.data
-    
+    #获取问题
     def get_question(self, data_point):
         return data_point["question"]
     
