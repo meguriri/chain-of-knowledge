@@ -41,7 +41,7 @@ def formatting_prompts_func(ipt):
 def llama2_pipeline(prompt):
     #基础模型
     base_model = "meta-llama/Llama-2-7b-hf"
-    #更好的模型
+    #peft的模型
     peft_model = "veggiebird/llama-2-7b-sparql-8bit"
     
     # load the model only once
