@@ -33,8 +33,8 @@ netstat -tln | grep -E '9090|789.'
 #进入项目目录
 cd ~/CHI-2025-Human-AI/internal/chain-of-knowledge
 #配置环境变量
-export OPENAI_API_KEY = your key
-export SERPAPI_KEY = your key
+export OPENAI_API_KEY=your key
+export SERPAPI_KEY=your key
 ```
 
 ## 4. llama2 token 登录
