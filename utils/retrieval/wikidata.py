@@ -23,25 +23,38 @@ import utils.globalvar
 # ### Input: 
 # ### Output: """
 
+'''
+格式化提示
+
+###说明：生成一个正确的 SPARQL 查询，返回以下问题的答案。生成四个不同类型的错误 SPARQL 查询
+### 输入：1993 年世界冠军花样滑冰运动员是来自乌克兰的 Oksana Baiul。
+### 输出：
+'''
 def formatting_prompts_func(ipt):
     text = f"### Instruction: Generate a correct SPARQL query that returns the answer of the following question. Generate four incorrect SPARQL queries of different types.\n### Input: {ipt}\n### Output: "
     return text
 
 ### Query Generation ###############################################
+'''
+通过llama2生成检索
+'''
 def llama2_pipeline(prompt):
+    #基础模型
     base_model = "meta-llama/Llama-2-7b-hf"
+    #更好的模型
     peft_model = "veggiebird/llama-2-7b-sparql-8bit"
     
     # load the model only once
     if utils.globalvar.model is None:
+        #通过transformers的AutoModelForCausalLM使用预训练模型
         utils.globalvar.model = AutoModelForCausalLM.from_pretrained(
-            base_model,
-            use_safetensors=True,
+            base_model, #预训练模型的名称
+            use_safetensors=True, 
             torch_dtype=torch.float16,
             load_in_8bit=True
         )
-
-        utils.globalvar.model = PeftModel.from_pretrained(utils.globalvar.model, peft_model)
+        
+        # utils.globalvar.model = PeftModel.from_pretrained(utils.globalvar.model, peft_model)
 
         utils.globalvar.tokenizer = AutoTokenizer.from_pretrained(base_model)
     
@@ -108,7 +121,8 @@ def get_elements(string):
         return (entities, relations)
     else:
         return None
-    
+
+#处理后的查询    
 def post_process_query(string):
     query1 = string.split('Correct query:')[-1].strip().split('Incorrect query 1')[0].strip()
     get_elements_results = get_elements(query1)
@@ -215,13 +229,19 @@ def get_wiki_info(list_of_info):
 
 ###############################################
 
-
+#生成wikidata的检索
 def generate_wikidata_query(input, data_point):
+    #获取格式化之后的理由问题
     prompt = formatting_prompts_func(input)
+    #通过llama2生成查询
     query = llama2_pipeline(prompt)
+    #根据查询生成处理后的查询
     processed_query = post_process_query(query)
+
+    #返回查询和处理后的查询
     return query, processed_query
 
+#根据检索从wikidata检索知识
 def execute_wikidata_query(query, processed_query):
     knowl = ""
     try:
@@ -235,11 +255,19 @@ def execute_wikidata_query(query, processed_query):
         knowl = ""
     return knowl
 
+
+#从wikidata检索知识
 def retrieve_wikidata_knowledge(input, data_point):
+
+    #生成检索
     print("Generate query...")
     query, processed_query = generate_wikidata_query(input, data_point)
     print(processed_query)
+    
+    #检索知识
     print("Retrieve knowledge...")
     knowl = execute_wikidata_query(query, processed_query)
     print(knowl)
+
+    #返回检索结果
     return knowl

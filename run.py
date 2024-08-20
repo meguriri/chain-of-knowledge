@@ -24,7 +24,7 @@ import os
 dataset: 数据集,
 data_point: 一条QA,
 model: gpt模型类型,
-threshold: , ##TODO 阈值？？
+threshold: 得分的阈值,
 ''' 
 def s1_reasoning_preparation(dataset, data_point, model, threshold):
     print("****************** Start stage 1: reasoning preparation ...")
@@ -60,7 +60,13 @@ def s1_reasoning_preparation(dataset, data_point, model, threshold):
 
     return data_point
 
-
+'''
+知识适应阶段:
+dataset: 数据集,
+data_point: 一条QA,
+model: gpt模型类型,
+step: #TODO 是每一步都展示，还是直接获得结果,
+''' 
 def s2_knowledge_adapting(dataset, data_point, model, step):
     print("****************** Start stage 2: knowledge adapting ...")
     if step:
@@ -131,6 +137,7 @@ if __name__ == "__main__":
     data = dataset.get_dataset()
     print('original data length:', len(data))
     #输出文件已经存在
+    #TODO
     if os.path.exists(args.output):
         print('Found existing outputs, will replace the original data with the existing outputs')
         # read existing outputs
@@ -162,6 +169,7 @@ if __name__ == "__main__":
         data_point["id"] = i
 
         # 数据集为fetaq或fetaqa——query的情况
+        #TODO
         if args.dataset == "fetaqa" or args.dataset == "fetaqa_query":
             question = data_point["question"]
             cot_prompt = dataset.get_s1_prompt(question)
@@ -189,40 +197,50 @@ if __name__ == "__main__":
             data[i] = data_point
             
             # 将data结果以json形式，写入输出文件中
-            #TODO：不太理解这里为什么每次都只更新1个data就写入文件
+            #不太理解这里为什么每次都只更新1个data就写入文件
             with open(args.output, "w") as f:
                 json.dump(data, f)
     
         # Self-consistency threshold
         #自洽阈值
-        #
+        #如果data_point中不存在final_answer且data_point的得分小于命令行参数的threshold（阈值）
         if data_point["cot_sc_score"] < args.threshold and 'final_answer' not in data_point:
             # continue only when the score is lower than threshold
             ##### run stage 2: knowledge adapting
+            #开启第二阶段，知识适应
             data_point = s2_knowledge_adapting(dataset, data_point, args.model, args.step)
 
             # update the datapoint
+            # 更新数据
             data[i] = data_point
-
+            
+            # 将data结果以json形式，写入输出文件中
             with open(args.output, "w") as f:
                 json.dump(data, f)
 
             ##### run stage 3: answer consolidation
+            #TODO 开启第三阶段，答案整合
             data_point = s3_answer_consolidation(dataset, data_point, args.model)
 
             # update the datapoint
+            # 更新数据
             data[i] = data_point
-
+            
+            # 将data结果以json形式，写入输出文件中
             with open(args.output, "w") as f:
                 json.dump(data, f)
         else:
+            #分数比定义的分数高或者data_point中有final_answer,跳过+1
             count += 1
             continue
-
+    
+    #TODO
     if "feta" in args.dataset:
         fetaqa_eval(args.output)
 
+    #跳过的次数（具有高一致性）
     print("Number of skipped samples (high consistency): ", count)
+    #结束
     print("ALL DONE!!")
 
 """

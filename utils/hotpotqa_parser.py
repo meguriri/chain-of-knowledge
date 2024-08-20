@@ -112,13 +112,18 @@ class hotpotqa:
         return data_point
     
     def update_rationales_step_by_step(self, model, data_point):
+        #获取该问题的知识域
         domains = data_point["s1_domains"]
+        #获取两个理由
         rationales = [x.strip() for x in data_point["cot_sc_rationales"]]
+        #理由1
         rationale_1 = rationales[0]
+        #理由2
         rationale_2 = rationales[1]
 
         print("****** Editing Rationale 1 ...")
         # retrieve knowledge for rationale 1 first
+        #检索理由1的知识，为一个字典，每个域为key，对应一个检索字典，key为检索网站，value为检索结果
         rationale_1_knowl = retrieve_knowledge(domains, rationale_1, data_point)
 
         # edit rationale 1 based on rationale 1_knowl

@@ -67,7 +67,8 @@ def generate_wikipedia_query(input, overall_question):
     prompt = verify_question_demonstration + "\nOverall Question: " + overall_question + \
             "\nAnswer: " + input + "\nQuestion: "
             
-    query = call_openai_api("text-davinci-003", prompt, max_tokens=256, temperature=0, n=1)[1].strip()
+    # query = call_openai_api("text-davinci-003", prompt, max_tokens=256, temperature=0, n=1)[1].strip()
+    query = call_openai_api("gpt-4", prompt, max_tokens=256, temperature=0, n=1)[1].strip()
     query += " @wikipedia"
     return query
 
