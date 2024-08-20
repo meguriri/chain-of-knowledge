@@ -11,6 +11,7 @@ class hotpotqa:
             self.data = json.load(f)
         
         # s1_prompt
+        # s1阶段的提问添加提示格式，cot？
         self.s1_prompt_demonstration = hotpotqa_s1_prompt_demonstration
         
         # s2_edit_prompt
@@ -26,6 +27,7 @@ class hotpotqa:
     def get_ground_truth(self, data_point):
         return data_point["answer"]
     
+    #获取带有提示格式，符合格式的问题 Q：A： 
     def get_s1_prompt(self, question):
         return self.s1_prompt_demonstration + "Q: " + question.strip() + "\nA: "
 
@@ -40,48 +42,71 @@ class hotpotqa:
     def get_s3_consolidation_prompt(self, question, rationale_1, rationale_2):
         return self.s1_prompt_demonstration + "Q: " + question.strip() + "\nA: First, " + rationale_1 + " Second, " + rationale_2 + " The answer is "
     
+    #
     def get_cot_sc_results(self, data_point, model, cot_prompt):
+        #向gpt发起请求 ，使用带提示的question，得到回答,回答数量为10个，温度0.7，让回答随机一些
         cot_sc_responses = call_openai_api(model, cot_prompt, max_tokens=256, temperature=0.7, n=10)
-    
+
+        #如果回答不为空
         if cot_sc_responses is not None:
             
+            # 获取全部的回答content
             all_cot_text_response = [x["message"]["content"].strip() for x in cot_sc_responses[0]["choices"]] # for chat models
             # all_cot_text_response = [x["text"].strip() for x in cot_sc_responses[0]["choices"]] # for text models
             
+            #定义result
             all_cot_results = []
             
+            #遍历10个回答
             for x in all_cot_text_response:
+                #整理回答，得到the answer is后面的内容，并转换为小写，加入到all_cot_results中
                 if "The answer is" in x:
                     all_cot_results.append(x.split("The answer is")[1].strip().lower())
                 else:
                     None
             
+            #选择前五个
             all_cot_results = all_cot_results[:5]
             # all_cot_results = [x.split("The answer is")[1].strip().lower() for x in all_cot_text_response]
             
             # find the most common answer and indices in all_cot_results
+            #set(all_cot_results)：去重；key = all_cot_results.count：max的key，按照出现次数最多的选择；max()：选择最大的answer
             most_common_answer = max(set(all_cot_results), key = all_cot_results.count)
+            #获取all_cot_results中回答为most_common_answer的索引值
             most_common_answer_indices = [i for i, x in enumerate(all_cot_results) if x == most_common_answer]
             
+            #获得分数，算法：all_cot_results中 most_common_answer的比例
             sc_score = float(len(most_common_answer_indices)) / len(all_cot_results)
             
             # use the first answer as cot answer
+            #？？？使用all_cot_results中的第一个作为cot_answer
             cot_answer = all_cot_results[0]
             
             # cot_sc answer and rationales
+            #保存出现次数最多的那次回答的完整内容
             cot_sc_text_response = all_cot_text_response[most_common_answer_indices[0]]
+            #获得first之后，second之前的内容,作为理由1（rationale_1）
             cot_sc_rationale_1 = cot_sc_text_response.split("Second, ")[0].strip().split("First, ")[1].strip()
+             #获得second之后，The answer is之前的内容,作为理由2（rationale_2）
             cot_sc_rationale_2 = cot_sc_text_response.split("Second, ")[1].strip().split("The answer is")[0].strip()
+            #将出现次数最多的那次回答的答案保存在cot_sc_answer
             cot_sc_answer = most_common_answer
         else:
+            #报错
             raise Exception("Stage 1: OpenAI API call failed")
         
         # store the results
+        #第一个回答的完整回答
         data_point["cot_response"] = all_cot_text_response[0]
+        #第一个回答中的答案
         data_point["cot_answer"] = cot_answer
+        #分数，五个回答中次数最多的答案的占比
         data_point["cot_sc_score"] = sc_score
+        #次数最多的那次回答的完整内容
         data_point["cot_sc_response"] = cot_sc_text_response
+        #次数最多的那次回答中的答案
         data_point["cot_sc_answer"] = cot_sc_answer
+        #次数最多的那次回答中的理由1，理由2
         data_point["cot_sc_rationales"] = [cot_sc_rationale_1, cot_sc_rationale_2]
 
         return data_point

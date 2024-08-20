@@ -74,18 +74,68 @@ dataset = hotpotqa()
 
 data = dataset.get_dataset()
 
-for i in range(5):
+for i in range(1):
     data_point = data[i]
     data_point["id"] = i
     question = dataset.get_question(data_point)
 
     domin_question = domain_selection_demonstration + "Q: "+ question.strip() + "\nRelevant domains: "
 
-    domain_response = call_openai_api('gpt-4', 
-                                      domin_question, 
-                                      max_tokens=256, 
-                                      temperature=0
-                                      )
-    if domain_response is not None:
-        print(domain_response)
+    # domain_response = call_openai_api('gpt-4', 
+    #                                   domin_question, 
+    #                                   max_tokens=256, 
+    #                                   temperature=0
+    #                                   )
+    # if domain_response is not None:
+    #     # gpt回复的内容content（可能是多个域domain）
+    #     domain_selection_text_response = domain_response[1].strip()
+    #     print("****** Relevant domains:", domain_selection_text_response)
+    #     # 将多个域转换成列表保存到data_point的s1_domain中
+    #     data_point["s1_domains"] = [x.strip() for x in domain_selection_text_response.split(",")]
 
+    #带提示格式的问题
+    # cot_prompt = dataset.get_s1_prompt(question)
+    # cot_sc_responses = call_openai_api('gpt-4', cot_prompt, max_tokens=256, temperature=0.7, n=10)
+
+    # if cot_sc_responses is not None:
+    #     # 获取全部的回答content
+    #     all_cot_text_response = [x["message"]["content"].strip() for x in cot_sc_responses[0]["choices"]] # for chat models
+    #     print(all_cot_text_response)
+    #     print('-------------------')
+    all_cot_text_response=['First, the 1993 World Champion figure skater is Oksana Baiul from Ukraine. Second, Ukraine won its second Winter Games gold medal in the 1994 Winter Olympics. The 1994 Winter Olympics were held in Lillehammer, Norway. The answer is Lillehammer, Norway.', 'First, the 1993 World Champion figure skater is Oksana Baiul who is from Ukraine. Second, Ukraine won its second Winter Games gold medal at the 1994 Olympics. The answer is Lillehammer, Norway.', 'First, the 1993 World Champion figure skater was Oksana Baiul from Ukraine. Second, Ukraine won its second Winter Games gold medal in the 1994 Winter Olympics. The 1994 Winter Olympics were held in Lillehammer, Norway. The answer is Lillehammer, Norway.', 'First, the 1993 World Champion figure skater is from the United States. Second, the United States won its second Winter Games gold medal in the 1960 Olympics. The answer is Squaw Valley, USA.', 'First, the 1993 World Champion figure skater is Oksana Baiul who is from Ukraine. Second, Ukraine won its second Winter Games gold medal at the 1994 Lillehammer Olympics. The answer is Lillehammer.', 'First, the 1993 World Champion figure skater is Oksana Baiul from Ukraine. Second, Ukraine won its second Winter Olympics gold medal in 1994. The 1994 Winter Olympics were held in Lillehammer, Norway. The answer is Lillehammer, Norway.', 'First, the 1993 World Champion figure skater is Oksana Baiul from Ukraine. Second, Ukraine won its second Winter Games gold medal at the 1994 Winter Olympics. The 1994 Winter Olympics were held in Lillehammer, Norway. The answer is Lillehammer, Norway.', 'First, the 1993 World Champion figure skater is Oksana Baiul from Ukraine. Second, Ukraine won its second Winter Games gold medal at the 1994 Lillehammer Olympics. The answer is Lillehammer.', 'First, the 1993 World Champion figure skater is Oksana Baiul from Ukraine. Second, Ukraine won its second Winter Games gold medal at the 1994 Olympics. The answer is Lillehammer, Norway.', 'First, the 1993 World Champion figure skater is Oksana Baiul from Ukraine. Second, Ukraine won its second Winter Games gold medal in 1994. The 1994 Winter Olympics were held in Lillehammer, Norway. The answer is Lillehammer, Norway.']
+    
+    all_cot_results = []
+        
+    #遍历10个回答
+    for x in all_cot_text_response:
+      if "The answer is" in x:
+        all_cot_results.append(x.split("The answer is")[1].strip().lower())
+      else:
+        None
+    
+    most_common_answer = max(set(all_cot_results), key = all_cot_results.count)
+    most_common_answer_indices = [i for i, x in enumerate(all_cot_results) if x == most_common_answer]
+    
+    sc_score = float(len(most_common_answer_indices)) / len(all_cot_results)
+
+    cot_sc_text_response = all_cot_text_response[most_common_answer_indices[0]]
+    cot_sc_rationale_1 = cot_sc_text_response.split("Second, ")[0].strip().split("First, ")[1].strip()
+    cot_sc_rationale_2 = cot_sc_text_response.split("Second, ")[1].strip().split("The answer is")[0].strip()
+    
+    data_point["cot_response"] = all_cot_text_response[0]
+    #第一个回答中的答案
+    data_point["cot_answer"] = all_cot_results[0]
+    #分数，五个回答中次数最多的答案的占比
+    data_point["cot_sc_score"] = sc_score
+    #次数最多的那次回答的完整内容
+    data_point["cot_sc_response"] = cot_sc_text_response
+    #次数最多的那次回答中的答案
+    data_point["cot_sc_answer"] = most_common_answer
+    #次数最多的那次回答中的理由1，理由2
+    data_point["cot_sc_rationales"] = [cot_sc_rationale_1, cot_sc_rationale_2]
+
+    data[i]=data_point
+    print(data[i])
+
+    with open('./test/output1.json', "w") as f:
+      json.dump(data, f)

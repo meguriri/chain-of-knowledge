@@ -40,16 +40,19 @@ def s1_reasoning_preparation(dataset, data_point, model, threshold):
     #获取gpt的response
     domain_selection_response = call_openai_api(model, domain_selection_prompt, max_tokens=256, temperature=0)
     
+    #消息不为空
     if domain_selection_response is not None:
-        # gpt回复的内容
+        # gpt回复的内容content（可能是多个域domain）
         domain_selection_text_response = domain_selection_response[1].strip()
         print("****** Relevant domains:", domain_selection_text_response)
-        # ???
+        # 将多个域转换成列表保存到data_point的s1_domain中
         data_point["s1_domains"] = [x.strip() for x in domain_selection_text_response.split(",")]
     
     ### CoT generation
+    # 获取带有格式提示，符合格式的问题 Q：A： 
     cot_prompt = dataset.get_s1_prompt(question)
     
+    #通过带有格式提示的问题，获取10个cot类型的答案，并将普通答案，sc答案，sc答案的两个理由等信息保存在data_point中
     data_point = dataset.get_cot_sc_results(data_point, model, cot_prompt)
     print("****** CoT answer:", data_point["cot_response"])
     print("****** CoT SC score:", data_point["cot_sc_score"])
@@ -178,7 +181,7 @@ if __name__ == "__main__":
             ##### run stage 1: reasoning preparation
             ##### 开始阶段1
 
-            ##生成新的QA字典
+            ##生成新的QA字典，带有两个理由
             data_point = s1_reasoning_preparation(dataset, data_point, args.model, args.threshold)
             
             # update the datapoint
@@ -186,10 +189,13 @@ if __name__ == "__main__":
             data[i] = data_point
             
             # 将data结果以json形式，写入输出文件中
+            #TODO：不太理解这里为什么每次都只更新1个data就写入文件
             with open(args.output, "w") as f:
                 json.dump(data, f)
     
         # Self-consistency threshold
+        #自洽阈值
+        #
         if data_point["cot_sc_score"] < args.threshold and 'final_answer' not in data_point:
             # continue only when the score is lower than threshold
             ##### run stage 2: knowledge adapting

@@ -47,6 +47,7 @@ def call_openai_api(model, input_text, max_tokens=256, temperature=0, n=1):
                     timeout=60,
                     request_timeout=60,
                 )
+                # 返回消息实体和message中的内容content
                 return [response, response["choices"][0]["message"]["content"]]
             else:
                 raise Exception("Invalid model name")
