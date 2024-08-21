@@ -82,6 +82,12 @@ def s2_knowledge_adapting(dataset, data_point, model, step):
 
     return data_point
 
+'''
+答案整合阶段:
+dataset: 数据集,
+data_point: 一条QA,
+model: gpt模型类型,
+'''
 def s3_answer_consolidation(dataset, data_point, model):
     print("****************** Start stage 3: answer consolidation ...")
     data_point = dataset.get_final_answer(model, data_point)
@@ -219,7 +225,7 @@ if __name__ == "__main__":
                 json.dump(data, f)
 
             ##### run stage 3: answer consolidation
-            #TODO 开启第三阶段，答案整合
+            #开启第三阶段，答案整合
             data_point = s3_answer_consolidation(dataset, data_point, args.model)
 
             # update the datapoint

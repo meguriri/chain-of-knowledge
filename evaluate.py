@@ -1,3 +1,7 @@
+'''
+    评价程序，根据run.py生成的output文件进行评分
+'''
+
 import argparse
 import json
 
