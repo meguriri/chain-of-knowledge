@@ -30,34 +30,37 @@ import utils.globalvar
 ### 输入：1993 年世界冠军花样滑冰运动员是来自乌克兰的 Oksana Baiul。
 ### 输出：
 '''
+
+
 def formatting_prompts_func(ipt):
     text = f"### Instruction: Generate a correct SPARQL query that returns the answer of the following question. Generate four incorrect SPARQL queries of different types.\n### Input: {ipt}\n### Output: "
     return text
+
 
 ### Query Generation ###############################################
 '''
 通过llama2生成检索
 '''
 def llama2_pipeline(prompt):
-    #基础模型
+    # 基础模型
     base_model = "meta-llama/Llama-2-7b-hf"
-    #peft的模型
+    # peft的模型
     peft_model = "veggiebird/llama-2-7b-sparql-8bit"
-    
+
     # load the model only once
     if utils.globalvar.model is None:
-        #通过transformers的AutoModelForCausalLM使用预训练模型
+        # 通过transformers的AutoModelForCausalLM使用预训练模型
         utils.globalvar.model = AutoModelForCausalLM.from_pretrained(
-            base_model, #预训练模型的名称
-            use_safetensors=True, 
+            base_model,  # 预训练模型的名称
+            use_safetensors=True,
             torch_dtype=torch.float16,
             load_in_8bit=True
         )
-        
+
         # utils.globalvar.model = PeftModel.from_pretrained(utils.globalvar.model, peft_model)
 
         utils.globalvar.tokenizer = AutoTokenizer.from_pretrained(base_model)
-    
+
     print("Model loaded...")
     pipeline = transformers.pipeline(
         "text-generation",
@@ -75,13 +78,14 @@ def llama2_pipeline(prompt):
         eos_token_id=utils.globalvar.tokenizer.eos_token_id,
         max_length=256,
     )
-    
+
     return sequences[0]["generated_text"].strip()
+
 
 ###############################################
 
 
-#### Entity Linking ###############################################
+####TODO  Entity Linking ###############################################
 def get_property_code(property_name):
     # Wikidata API endpoint
     url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=property&search={property_name}"
@@ -108,13 +112,13 @@ def get_elements(string):
     if len(slashes) % 2 == 0:
         entities = []
         relations = []
-        for i in range(int(len(slashes)/2)):
+        for i in range(int(len(slashes) / 2)):
             start = slashes[i * 2] + 1
             end = slashes[i * 2 + 1]
-            
-            if string[start - 3 : start - 2] == 'd':
+
+            if string[start - 3: start - 2] == 'd':
                 entities.append(string[start:end])
-            elif string[start - 3 : start - 2] == 't':
+            elif string[start - 3: start - 2] == 't':
                 relations.append(string[start:end])
             else:
                 None
@@ -122,7 +126,8 @@ def get_elements(string):
     else:
         return None
 
-#处理后的查询    
+
+# 处理后的查询
 def post_process_query(string):
     query1 = string.split('Correct query:')[-1].strip().split('Incorrect query 1')[0].strip()
     get_elements_results = get_elements(query1)
@@ -131,7 +136,7 @@ def post_process_query(string):
     else:
         entity_list = []
         relation_list = []
-        
+
     # get ids for entities and relations, and then replace in the string
     # print("Processing entity linkings...")
     for i in range(len(entity_list)):
@@ -148,33 +153,33 @@ def post_process_query(string):
             query1 = query1.replace(relation_list[i], tmp_relations)
         except:
             None
-            
+
     query1 = query1.replace('/', '')
-    
+
     return query1
 
-
+#从wiki_data检索
 def query_wiki(query):
-  endpoint_url = "https://query.wikidata.org/sparql"
+    endpoint_url = "https://query.wikidata.org/sparql"
 
-  # Create a SPARQLWrapper object and set the endpoint URL
-  sparql = SPARQLWrapper(endpoint_url)
+    # Create a SPARQLWrapper object and set the endpoint URL
+    sparql = SPARQLWrapper(endpoint_url)
 
-  # Set the SPARQL query
-  sparql.setQuery(query)
+    # Set the SPARQL query
+    sparql.setQuery(query)
 
-  # Set the returned format to JSON
-  sparql.setReturnFormat(JSON)
+    # Set the returned format to JSON
+    sparql.setReturnFormat(JSON)
 
-  # Execute the query and fetch the results
-  results = sparql.query().convert()
+    # Execute the query and fetch the results
+    results = sparql.query().convert()
 
-  # Process the results
-  item_labels = []
-  for result in results["results"]["bindings"]:
-      item_labels.append(result)
-      
-  return item_labels
+    # Process the results
+    item_labels = []
+    for result in results["results"]["bindings"]:
+        item_labels.append(result)
+
+    return item_labels
 
 
 def get_entity_name(entity_id):
@@ -193,7 +198,7 @@ def get_wiki_info(list_of_info):
     info_list = []
     for i in range(len(list_of_info)):
         tmp_info = list_of_info[i]
-        
+
         if len(tmp_info) == 1:
             if 'obj' in tmp_info:
                 # info_list.append(tmp_info['obj']['value'])
@@ -209,7 +214,7 @@ def get_wiki_info(list_of_info):
                 tmp_value = tmp_info['ent']['value']
             else:
                 raise ValueError
-            
+
             if 'http://www.wikidata.org/' in tmp_value:
                 info_list.append(get_entity_name(tmp_value.split('/')[-1]))
             else:
@@ -218,30 +223,32 @@ def get_wiki_info(list_of_info):
             # ans_1 ans_2
             info_list.append(get_entity_name(tmp_info['ans_1']['value'].split('/')[-1]))
             info_list.append(get_entity_name(tmp_info['ans_2']['value'].split('/')[-1]))
-    
+
     # convert list to string
     opt = ''
     for i in info_list:
         opt += i
         opt += ', '
-        
-    return opt[:-2]+'.'
+
+    return opt[:-2] + '.'
+
 
 ###############################################
 
-#生成wikidata的检索
+# 生成wikidata的检索
 def generate_wikidata_query(input, data_point):
-    #获取格式化之后的理由问题
+    # 获取格式化之后的理由问题
     prompt = formatting_prompts_func(input)
-    #通过llama2生成查询
+    # 通过llama2生成查询
     query = llama2_pipeline(prompt)
-    #根据查询生成处理后的查询
+    # 根据查询生成处理后的查询
     processed_query = post_process_query(query)
 
-    #返回查询和处理后的查询
+    # 返回查询和处理后的查询
     return query, processed_query
 
-#根据检索从wikidata检索知识
+
+# 根据检索从wikidata检索知识
 def execute_wikidata_query(query, processed_query):
     knowl = ""
     try:
@@ -256,18 +263,18 @@ def execute_wikidata_query(query, processed_query):
     return knowl
 
 
-#从wikidata检索知识
+# 从wikidata检索知识
 def retrieve_wikidata_knowledge(input, data_point):
-
-    #生成检索
+    # 生成检索
     print("Generate query...")
+    #
     query, processed_query = generate_wikidata_query(input, data_point)
     print(processed_query)
-    
-    #检索知识
+
+    # 检索知识
     print("Retrieve knowledge...")
     knowl = execute_wikidata_query(query, processed_query)
     print(knowl)
 
-    #返回检索结果
+    # 返回检索结果
     return knowl

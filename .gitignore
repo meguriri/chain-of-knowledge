@@ -164,5 +164,7 @@ log/
 utils/retrieval/linking_data
 /.idea/
 
-
+xyyTest.py
 key.txt
+
+outputs/
